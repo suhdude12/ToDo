@@ -1,31 +1,47 @@
-from flask import render_template, request, redirect, url_for 
-from app import app 
-from app.models import Todo 
-from app import db 
-  
-  
-@app.route('/') 
-def index(): 
-    incomplete = Todo.query.filter_by(complete=False).all() 
-    complete = Todo.query.filter_by(complete=True).all() 
-  
-    return render_template('index.html', incomplete=incomplete, complete=complete) 
-  
-  
-@app.route('/add', methods=['POST']) 
-def add(): 
-    todo = Todo(text=request.form['todoitem'], complete=False) 
-    db.session.add(todo) 
-    db.session.commit() 
-  
-    return redirect(url_for('index')) 
-  
-  
-@app.route('/complete/<id>') 
-def complete(id): 
-  
-    todo = Todo.query.filter_by(id=int(id)).first() 
-    todo.complete = True
-    db.session.commit() 
-  
-    return redirect(url_for('index'))
+from flask import jsonify, request
+from app import app, db
+from app.models import Todo
+
+@app.route('/api/todos', methods=['GET'])
+def get_todos():
+    todos = Todo.query.all()
+    return jsonify([{
+        'id': todo.id,
+        'text': todo.text,
+        'complete': todo.complete
+    } for todo in todos])
+
+@app.route('/api/todos', methods=['POST'])
+def add_todo():
+    data = request.get_json()
+    new_todo = Todo(
+        text=data['text'],
+        complete=False
+    )
+    db.session.add(new_todo)
+    db.session.commit()
+    return jsonify({
+        'id': new_todo.id,
+        'text': new_todo.text,
+        'complete': new_todo.complete
+    })
+
+@app.route('/api/todos/<int:todo_id>', methods=['PUT'])
+def update_todo(todo_id):
+    data = request.get_json()
+    todo = Todo.query.get(todo_id)
+    todo.text = data['text']
+    todo.complete = data['complete']
+    db.session.commit()
+    return jsonify({
+        'id': todo.id,
+        'text': todo.text,
+        'complete': todo.complete
+    })
+
+@app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
+def delete_todo(todo_id):
+    todo = Todo.query.get(todo_id)
+    db.session.delete(todo)
+    db.session.commit()
+    return jsonify({'result': 'success'})
