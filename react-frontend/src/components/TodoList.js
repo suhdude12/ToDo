@@ -1,79 +1,106 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import TodoItem from './TodoItem';
 
 function TodoList() {
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      text: 'Doctor Appointment',
-      completed: true
-    },
-    {
-      id: 2,
-      text: 'Meeting at School',
-      completed: false
-    }
-  ]);
-
+  const [tasks, setTasks] = useState([]);
   const [text, setText] = useState('');
 
-  function addTask(text) {
-    const newTask = {
-      id: Date.now(),
-      text,
-      completed: false
-    };
-    setTasks([...tasks, newTask]);
-    setText('');
-  }
+  useEffect(() => {
+    axios.get('http://127.0.0.1:5000/api/todos')
+      .then(response => {
+        setTasks(response.data);
+      })
+      .catch(error => {
+        console.error("There was an error fetching the todos!", error);
+      });
+  }, []);
 
-  function deleteTask(id) {
-    setTasks(tasks.filter(task => task.id !== id));
-  }
+  const addTask = (text) => {
+    axios.post('http://127.0.0.1:5000/api/todos', { text })
+      .then(response => {
+        setTasks([...tasks, response.data]);
+        setText('');
+      })
+      .catch(error => {
+        console.error("There was an error adding the todo!", error);
+      });
+  };
 
-  function toggleCompleted(id) {
-    setTasks(tasks.map(task => {
-      if (task.id === id) {
-        return { ...task, completed: !task.completed };
-      } else {
-        return task;
-      }
-    }));
-  }
+  const deleteTask = (id) => {
+    axios.delete(`http://127.0.0.1:5000/api/todos/${id}`)
+      .then(() => {
+        setTasks(tasks.filter(task => task.id !== id));
+      })
+      .catch(error => {
+        console.error("There was an error deleting the todo!", error);
+      });
+  };
+
+  const toggleCompleted = (id) => {
+    const task = tasks.find(task => task.id === id);
+    axios.put(`http://127.0.0.1:5000/api/todos/${id}`, {
+      text: task.text,
+      complete: !task.complete
+    })
+      .then(response => {
+        setTasks(tasks.map(task => 
+          task.id === id ? response.data : task
+        ));
+      })
+      .catch(error => {
+        console.error("There was an error updating the todo!", error);
+      });
+  };
+
+  const updateTask = (id, newText) => {
+    axios.put(`http://127.0.0.1:5000/api/todos/${id}`, {
+      text: newText,
+      complete: tasks.find(task => task.id === id).complete
+    })
+      .then(response => {
+        setTasks(tasks.map(task => 
+          task.id === id ? response.data : task
+        ));
+      })
+      .catch(error => {
+        console.error("There was an error updating the todo!", error);
+      });
+  };
 
   return (
-    <div className="container">
+    <div className="todo-list">
       <h1>Suhdude's Todo List Project</h1>
-
-      <div className="add-task">
-        <input
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="Enter a new task"
-        />
-        <button onClick={() => addTask(text)}>Add Task</button>
-      </div>
+      <input
+        type="text"
+        placeholder="Enter a new task"
+        value={text}
+        onChange={e => setText(e.target.value)} 
+      />
+      <button onClick={() => addTask(text)}>Add Task</button>
 
       <h2>Incomplete</h2>
-      <ul className="todo-list">
-        {tasks.filter(task => !task.completed).map(task => (
+      <ul>
+        {tasks.filter(task => !task.complete).map(task => (
           <TodoItem
-            key={task.id}
+            key={task.id} 
             task={task}
             deleteTask={deleteTask}
             toggleCompleted={toggleCompleted}
+            updateTask={updateTask}
           />
         ))}
       </ul>
 
       <h2>Complete</h2>
       <ul>
-        {tasks.filter(task => task.completed).map(task => (
+        {tasks.filter(task => task.complete).map(task => (
           <TodoItem
-            key={task.id}
+            key={task.id} 
             task={task}
             deleteTask={deleteTask}
             toggleCompleted={toggleCompleted}
+            updateTask={updateTask}
           />
         ))}
       </ul>
